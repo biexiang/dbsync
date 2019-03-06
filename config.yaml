@@ -1,0 +1,16 @@
+version: 0.01
+src: 
+  host: 10.198.66.42
+  user: appjiagu_index
+  pwd: xx
+  dbname: appjiagu_index
+  port: 14300
+dst: 
+  host: 10.208.68.10
+  user: jiagubao_dev
+  pwd: xx
+  dbname: jiagubao_dev
+  port: 2044
+table:
+  - da_package_appname_class
+  - da_app_class_hierarchy
