@@ -2,15 +2,23 @@ version: 0.01
 src: 
   host: 10.198.66.42
   user: appjiagu_index
-  pwd: xx
+  pwd: /
   dbname: appjiagu_index
   port: 14300
 dst: 
-  host: 10.208.68.10
-  user: jiagubao_dev
-  pwd: xx
-  dbname: jiagubao_dev
-  port: 2044
+  host: 127.0.0.1
+  user: root
+  pwd: /
+  dbname: test
+  port: 3306 
 table:
-  - da_package_appname_class
-  - da_app_class_hierarchy
+  - name: da_package_appname_class
+    rebuild: True
+    batch: 2000
+    where: 
+      - class_id=20
+  - name: da_app_class_hierarchy
+    rebuild: True
+    batch: 1000
+    where: 
+      - parent_id=20

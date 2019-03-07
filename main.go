@@ -13,6 +13,12 @@ import (
 
 func main() {
 
+	var err error
+	var rows [][]string
+	var affectID int64
+	var lastID int64
+	var fistFlag bool
+
 	//读取配置文件到struct
 	config.InitConfig()
 
@@ -20,30 +26,29 @@ func main() {
 	dstDB := database.GetConn(config.W.Destination)
 	srcDB := database.GetConn(config.W.Source)
 
-	var err error
-	var rows [][]string
-	var affectID int64
-	var lastID int64
-	var fistFlag bool
-
 	//同步数据
 	for _, table := range config.W.Table {
 
-		fistFlag = true
+		if table.Rebuild {
+			err = truncateTable(dstDB, table)
+			if err != nil {
+				goto EXCEPTION
+			}
+		}
 
+		fistFlag = true
 		lastID, err = fetchDstLatestID(dstDB, table)
 		if err != nil {
 			goto EXCEPTION
 		}
 
 		for fistFlag || len(rows) > 0 {
-			rows, lastID, err = fetchSrcRow(srcDB, table, lastID, 1000)
+			rows, lastID, err = fetchSrcRow(srcDB, table, lastID, table.Batch)
 			if err != nil {
 				goto EXCEPTION
 			}
 
 			fistFlag = false
-			log.Println("Point ", lastID, len(rows))
 
 			//TODO 如果数据插入异常怎么办 主键重复
 			for _, row := range rows {
@@ -57,19 +62,15 @@ func main() {
 				}
 			}
 		}
-
-		log.Println("Done with Table " + table)
+		log.Println("Done with Table " + table.Name)
 	}
-
 	return
-
 EXCEPTION:
 	log.Println("Aparently Oops -> ", err)
-
 }
 
-func insertDstRow(db *sql.DB, table string, row []string) (affect int64, err error) {
-	var s = "insert into " + table + " values ('" + strings.Join(row, "','") + "')"
+func insertDstRow(db *sql.DB, table config.TableInfo, row []string) (affect int64, err error) {
+	var s = "insert into " + table.Name + " values ('" + strings.Join(row, "','") + "')"
 	var ret sql.Result
 	ret, err = db.Exec(s)
 	if err != nil {
@@ -82,9 +83,16 @@ func insertDstRow(db *sql.DB, table string, row []string) (affect int64, err err
 	return rowCount, nil
 }
 
-func fetchSrcRow(db *sql.DB, table string, id int64, size int) (ret [][]string, offset int64, err error) {
+func fetchSrcRow(db *sql.DB, table config.TableInfo, id int64, size int64) (ret [][]string, offset int64, err error) {
 	var rows *sql.Rows
-	var sql = "select * from " + table + " where id > " + strconv.FormatInt(id, 10) + " order by id asc limit " + strconv.Itoa(size)
+	strID := "id>" + strconv.FormatInt(id, 10)
+	var sl = []string{strID}
+	sl = append(sl, table.Where...)
+	clause := strings.Join(sl[:], " and ")
+	var sql = "select * from " + table.Name + " where " + clause + " order by id asc limit " + strconv.FormatInt(size, 10)
+
+	log.Println(sql)
+
 	rows, err = db.Query(sql)
 	if err != nil {
 		return nil, 0, err
@@ -129,9 +137,9 @@ func toString(columns []interface{}) []string {
 	return strCln
 }
 
-func fetchDstLatestID(db *sql.DB, table string) (id int64, err error) {
+func fetchDstLatestID(db *sql.DB, table config.TableInfo) (id int64, err error) {
 	var rows *sql.Rows
-	var sql = "select id from " + table + " order by id desc limit 1"
+	var sql = "select id from " + table.Name + " order by id desc limit 1"
 	rows, err = db.Query(sql)
 	if err != nil {
 		return 0, err
@@ -145,4 +153,13 @@ func fetchDstLatestID(db *sql.DB, table string) (id int64, err error) {
 	}
 	rows.Close()
 	return id, nil
+}
+
+func truncateTable(db *sql.DB, table config.TableInfo) (err error) {
+	var sql = "truncate table " + table.Name
+	_, err = db.Exec(sql)
+	if err != nil {
+		return err
+	}
+	return nil
 }

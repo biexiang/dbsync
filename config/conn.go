@@ -9,10 +9,10 @@ import (
 
 //Wraper yaml
 type Wraper struct {
-	Version     string   `yaml:"version"`
-	Source      Conn     `yaml:"src"`
-	Destination Conn     `yaml:"dst"`
-	Table       []string `yaml:"table"`
+	Version     string      `yaml:"version"`
+	Source      Conn        `yaml:"src"`
+	Destination Conn        `yaml:"dst"`
+	Table       []TableInfo `yaml:"table"`
 }
 
 //Conn conn
@@ -22,6 +22,14 @@ type Conn struct {
 	Pass     string `yaml:"pwd"`
 	Database string `yaml:"dbname"`
 	Port     string `yaml:"port"`
+}
+
+//TableInfo info
+type TableInfo struct {
+	Name    string   `yaml:"name"`
+	Rebuild bool     `yaml:"rebuild"`
+	Batch   int64    `yaml:"batch"`
+	Where   []string `yaml:"where"`
 }
 
 var W = Wraper{}
